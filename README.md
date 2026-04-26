@@ -18,7 +18,7 @@ drill-down to deployments and per-deployment detail.
 4. **Deployment list** — every deployment for the chosen technology
 5. **Deployment detail** — full record metadata for one deployment
 
-## Run
+## Run (development, with Vite)
 
 ```bash
 cd FrontEnd
@@ -28,12 +28,32 @@ npm run dev
 
 Open <http://localhost:5173>. That's it — no API server to start.
 
-For a production build:
+## Run on a machine that doesn't have Node / Vite
+
+Vite is only used at build time. The built output in `FrontEnd/dist/` is plain
+HTML/CSS/JS and runs on any browser without Node or Vite.
+
+Build once on a machine with Node 18+:
 
 ```bash
+cd FrontEnd
+npm install
 npm run build
-npm run preview
 ```
+
+This produces `FrontEnd/dist/` with **relative** asset paths (thanks to
+`base: "./"` in `vite.config.js`), so it's fully portable. To run it elsewhere:
+
+1. Copy the entire `dist/` folder to the target machine.
+2. Either double-click `dist/index.html` (most browsers run it from `file://`),
+   **or** serve it with any HTTP server, e.g.:
+   ```bash
+   cd dist
+   python3 -m http.server 8080
+   ```
+   Then open <http://localhost:8080>.
+
+Nothing on the target machine needs Node, npm, or Vite installed.
 
 ## Updating the data
 
