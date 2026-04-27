@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bar, Line } from "react-chartjs-2";
 import KPICards from "./KPICards";
 import AnimatedNumber from "./AnimatedNumber";
@@ -787,8 +787,16 @@ export default function IntelligenceDashboard({
     setExpandedChart({
       key: "intel-lifecycle",
       title: "Repository Lifecycle",
-      sub: "First→last deploy span per repo",
-      render: () => <Bar data={lifecycleData} options={lifecycleOptions} />,
+      sub: "First→last deploy span per repo · search to filter · click a bar to drill in",
+      render: () => (
+        <LifecycleExpanded
+          lifecycle={intel.lifecycle}
+          repos={intel.repos}
+          gridColor={gridColor}
+          tickColor={tickColor}
+          onRepoClick={drillByRepo}
+        />
+      ),
     });
   const expandTypePerRepo = () =>
     setExpandedChart({
@@ -850,6 +858,28 @@ export default function IntelligenceDashboard({
                 Sorted by success rate · click a row to drill in
               </div>
             </div>
+            <button
+              type="button"
+              className="chart-expand"
+              onClick={() =>
+                setExpandedChart({
+                  key: "intel-stability",
+                  title: "Repository Stability Leaderboard",
+                  sub: "Sorted by success rate · click a row to drill in",
+                  render: () => (
+                    <StabilityBars
+                      rows={intel.stability}
+                      onRowClick={drillByRepo}
+                      tall
+                    />
+                  ),
+                })
+              }
+              aria-label="Expand chart"
+              title="Expand"
+            >
+              <ExpandIcon />
+            </button>
           </div>
           <StabilityBars rows={intel.stability} onRowClick={drillByRepo} />
         </div>
@@ -861,6 +891,28 @@ export default function IntelligenceDashboard({
                 failure_rate × volume × repos × 10 · click an app
               </div>
             </div>
+            <button
+              type="button"
+              className="chart-expand"
+              onClick={() =>
+                setExpandedChart({
+                  key: "intel-risk",
+                  title: "Application Composite Risk Score",
+                  sub: "failure_rate × volume × repos × 10 · click an app to drill in",
+                  render: () => (
+                    <RiskScorePills
+                      rows={intel.riskScores}
+                      onRowClick={drillByApp}
+                      tall
+                    />
+                  ),
+                })
+              }
+              aria-label="Expand chart"
+              title="Expand"
+            >
+              <ExpandIcon />
+            </button>
           </div>
           <RiskScorePills rows={intel.riskScores} onRowClick={drillByApp} />
         </div>
@@ -935,9 +987,33 @@ export default function IntelligenceDashboard({
             <div className="chart-card-title">
               <div className="chart-title">All Deployments</div>
               <div className="chart-sub">
-                Sortable · click any row to inspect the full record
+                Sortable · Excel-style column filters · click any row to inspect
               </div>
             </div>
+            <button
+              type="button"
+              className="chart-expand"
+              onClick={() =>
+                setExpandedChart({
+                  key: "intel-fullLog",
+                  title: "All Deployments",
+                  sub: "Sortable · Excel-style column filters · click any row to inspect",
+                  render: () => (
+                    <FullLogTable
+                      deployments={deployments}
+                      onRowClick={(d) =>
+                        openDrill(d.repo_name, (row) => row.jet_uuid === d.jet_uuid)
+                      }
+                      tall
+                    />
+                  ),
+                })
+              }
+              aria-label="Expand chart"
+              title="Expand"
+            >
+              <ExpandIcon />
+            </button>
           </div>
           <FullLogTable
             deployments={deployments}
@@ -956,10 +1032,156 @@ function truncate(s, max) {
   return s.length > max ? `${s.slice(0, max - 1)}…` : s;
 }
 
-// ---- Repository Stability Leaderboard ----
-function StabilityBars({ rows, onRowClick }) {
+// ---- Repository Lifecycle — expanded modal view (tall, scrollable, searchable) ----
+function LifecycleExpanded({ lifecycle, repos, gridColor, tickColor, onRepoClick }) {
+  const [query, setQuery] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return lifecycle;
+    return lifecycle.filter((r) => r.repo.toLowerCase().includes(q));
+  }, [lifecycle, query]);
+
+  const dayMs = 86400000;
+  const baseTime = filtered.length ? filtered[0].start : 0;
+
+  const data = {
+    labels: filtered.map((r) => truncate(r.repo, 32)),
+    datasets: [
+      {
+        label: "_offset",
+        data: filtered.map((r) => Math.round((r.start - baseTime) / dayMs)),
+        backgroundColor: "rgba(0,0,0,0)",
+        borderColor: "rgba(0,0,0,0)",
+        borderWidth: 0,
+        stack: "lifecycle",
+        datalabels: { display: false },
+      },
+      {
+        label: "Lifecycle (days)",
+        data: filtered.map((r) => Math.max(1, Math.round(r.span / dayMs))),
+        backgroundColor: filtered.map((r) => {
+          const proj = r.repo && repos[r.repo].apps.values().next().value;
+          return colorForApp(proj || "") + "cc";
+        }),
+        borderColor: filtered.map((r) => {
+          const proj = r.repo && repos[r.repo].apps.values().next().value;
+          return colorForApp(proj || "");
+        }),
+        borderWidth: 2,
+        borderRadius: 4,
+        stack: "lifecycle",
+      },
+    ],
+  };
+
+  const options = {
+    indexAxis: "y",
+    responsive: true,
+    maintainAspectRatio: false,
+    onHover: (e, els) => {
+      const t = e?.native?.target;
+      if (t) t.style.cursor = els.length ? "pointer" : "default";
+    },
+    onClick: (_e, els) => {
+      if (els.length) onRepoClick(filtered[els[0].index].repo);
+    },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (c) => {
+            if (c.datasetIndex === 0) return null;
+            const item = filtered[c.dataIndex];
+            const start = new Date(item.start);
+            const end = new Date(item.end);
+            const span = Math.round(item.span / dayMs);
+            return `${start.toLocaleDateString()} → ${end.toLocaleDateString()} · ${span} days · ${item.deploys} deploys`;
+          },
+        },
+      },
+      datalabels: {
+        display: (ctx) => ctx.datasetIndex === 1,
+        color: "#fff",
+        font: { weight: 700, size: 11, family: "'JetBrains Mono', monospace" },
+        anchor: "center",
+        align: "center",
+        formatter: (_v, ctx) => `${filtered[ctx.dataIndex].deploys}d`,
+        textStrokeColor: "rgba(0,0,0,0.5)",
+        textStrokeWidth: 2,
+      },
+    },
+    scales: {
+      x: {
+        stacked: true,
+        grid: { color: gridColor },
+        ticks: { color: tickColor },
+        beginAtZero: true,
+        position: "top",
+        title: { display: true, text: "Days from earliest first-deploy", color: tickColor },
+      },
+      y: {
+        stacked: true,
+        grid: { display: false },
+        ticks: {
+          color: tickColor,
+          autoSkip: false,
+          font: { family: "'JetBrains Mono'", size: 11 },
+        },
+      },
+    },
+  };
+
+  // 32px per repo bar gives enough room for the data label and breathes nicely.
+  const rowHeight = 32;
+  const canvasHeight = Math.max(320, filtered.length * rowHeight + 60);
+
   return (
-    <div className="stab-list">
+    <div className="lifecycle-expand">
+      <div className="lifecycle-expand-toolbar">
+        <input
+          type="search"
+          className="lifecycle-search"
+          placeholder="Search repository name…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          autoFocus
+        />
+        <span className="lifecycle-count">
+          Showing <b>{filtered.length}</b> of <b>{lifecycle.length}</b>
+          {query && (
+            <button
+              type="button"
+              className="lifecycle-clear"
+              onClick={() => setQuery("")}
+            >
+              Clear
+            </button>
+          )}
+        </span>
+      </div>
+      <div className="lifecycle-expand-scroll">
+        {filtered.length === 0 ? (
+          <div className="lifecycle-empty">
+            No repositories match “{query}”.
+          </div>
+        ) : (
+          <div
+            className="lifecycle-canvas-wrap"
+            style={{ height: canvasHeight }}
+          >
+            <Bar data={data} options={options} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---- Repository Stability Leaderboard ----
+function StabilityBars({ rows, onRowClick, tall = false }) {
+  return (
+    <div className={`stab-list${tall ? " is-tall" : ""}`}>
       {rows.map((r) => {
         const tone = r.rate >= 80 ? "ok" : r.rate >= 50 ? "warn" : "bad";
         return (
@@ -989,10 +1211,10 @@ function StabilityBars({ rows, onRowClick }) {
 }
 
 // ---- Application Composite Risk Score ----
-function RiskScorePills({ rows, onRowClick }) {
+function RiskScorePills({ rows, onRowClick, tall = false }) {
   const max = Math.max(1, ...rows.map((r) => r.score));
   return (
-    <div className="risk-list">
+    <div className={`risk-list${tall ? " is-tall" : ""}`}>
       {rows.map((r) => {
         const tone = r.score === 0 ? "ok" : r.score < max * 0.4 ? "warn" : "bad";
         const pct = Math.max(8, Math.round((r.score / max) * 100));
@@ -1136,19 +1358,32 @@ function SharedRepoTable({ rows, onRowClick }) {
 
 // ---- Full sortable deployment log ----
 const LOG_COLUMNS = [
-  { key: "deploy_time", label: "Deploy Time", numeric: true },
-  { key: "project_name", label: "App" },
-  { key: "repo_name", label: "Repository" },
-  { key: "deploy_type", label: "Type" },
-  { key: "deploy_status", label: "Status" },
-  { key: "change_ctrl_ticket", label: "Change Ticket" },
+  { key: "deploy_time", label: "Deploy Time", filterable: false },
+  { key: "project_name", label: "App", filterable: true },
+  { key: "repo_name", label: "Repository", filterable: true },
+  { key: "deploy_type", label: "Type", filterable: true },
+  { key: "deploy_status", label: "Status", filterable: true },
+  { key: "change_ctrl_ticket", label: "Change Ticket", filterable: true },
 ];
 
-function FullLogTable({ deployments, onRowClick }) {
+function FullLogTable({ deployments, onRowClick, tall = false }) {
   const [sort, setSort] = useState({ key: "deploy_time", dir: "desc" });
+  // filters: column key -> Set<string> of allowed values; missing/empty = all
+  const [filters, setFilters] = useState({});
+  const [openFilter, setOpenFilter] = useState(null);
+
+  const filtered = useMemo(() => {
+    const entries = Object.entries(filters).filter(
+      ([, set]) => set && set.size > 0
+    );
+    if (!entries.length) return deployments;
+    return deployments.filter((d) =>
+      entries.every(([k, set]) => set.has(String(d[k])))
+    );
+  }, [deployments, filters]);
 
   const sorted = useMemo(() => {
-    const copy = [...deployments];
+    const copy = [...filtered];
     copy.sort((a, b) => {
       let av = a[sort.key];
       let bv = b[sort.key];
@@ -1161,61 +1396,280 @@ function FullLogTable({ deployments, onRowClick }) {
       return 0;
     });
     return copy;
-  }, [deployments, sort]);
+  }, [filtered, sort]);
 
   const onHeaderClick = (k) =>
     setSort((s) =>
       s.key === k ? { key: k, dir: s.dir === "asc" ? "desc" : "asc" } : { key: k, dir: "asc" }
     );
 
+  const applyFilter = (key, set) =>
+    setFilters((f) => {
+      const next = { ...f };
+      if (!set || set.size === 0) delete next[key];
+      else next[key] = set;
+      return next;
+    });
+
+  const activeFilterCount = Object.keys(filters).length;
+  const clearAll = () => setFilters({});
+
   return (
-    <div className="log-wrap">
-      <table className="log-table">
-        <thead>
-          <tr>
-            {LOG_COLUMNS.map((c) => (
-              <th
-                key={c.key}
-                className={`log-th${sort.key === c.key ? " sorted" : ""}`}
-                onClick={() => onHeaderClick(c.key)}
+    <div className={`log-wrap${tall ? " is-tall" : ""}`}>
+      <div className="log-toolbar">
+        <span className="log-count">
+          Showing <b>{sorted.length}</b> of <b>{deployments.length}</b>
+          {activeFilterCount > 0 && (
+            <>
+              {" "}· <span className="log-filter-tag">{activeFilterCount} filter{activeFilterCount === 1 ? "" : "s"}</span>
+              <button
+                type="button"
+                className="log-clear-btn"
+                onClick={clearAll}
               >
-                <span>{c.label}</span>
-                <span className="log-arrow">
-                  {sort.key === c.key ? (sort.dir === "asc" ? "▲" : "▼") : "↕"}
-                </span>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((d) => (
-            <tr
-              key={d.jet_uuid}
-              className="log-row"
-              onClick={() => onRowClick(d)}
-            >
-              <td className="log-time">{formatTs(d.deploy_time)}</td>
-              <td>
-                <span className="log-app-pill" style={{ color: colorForApp(d.project_name), borderColor: colorForApp(d.project_name) + "55", background: colorForApp(d.project_name) + "20" }}>
-                  {d.project_name}
-                </span>
-              </td>
-              <td className="log-repo" title={d.repo_name}>{d.repo_name}</td>
-              <td>
-                <span className="log-type-pill" style={{ color: colorForType(d.deploy_type), borderColor: colorForType(d.deploy_type) + "55", background: colorForType(d.deploy_type) + "20" }}>
-                  {d.deploy_type}
-                </span>
-              </td>
-              <td>
-                <span className={`log-status-pill log-status-${d.deploy_status.toLowerCase()}`}>
-                  {d.deploy_status}
-                </span>
-              </td>
-              <td className="log-ticket">{d.change_ctrl_ticket}</td>
+                Clear all
+              </button>
+            </>
+          )}
+        </span>
+      </div>
+      <div className="log-scroll">
+        <table className="log-table">
+          <thead>
+            <tr>
+              {LOG_COLUMNS.map((c) => (
+                <LogColumnHeader
+                  key={c.key}
+                  col={c}
+                  rows={deployments}
+                  sort={sort}
+                  onSortClick={() => onHeaderClick(c.key)}
+                  filters={filters}
+                  onApply={(set) => applyFilter(c.key, set)}
+                  isOpen={openFilter === c.key}
+                  onToggle={() =>
+                    setOpenFilter((cur) => (cur === c.key ? null : c.key))
+                  }
+                />
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {sorted.length === 0 && (
+              <tr>
+                <td colSpan={LOG_COLUMNS.length} className="log-empty">
+                  No rows match the active filters.
+                </td>
+              </tr>
+            )}
+            {sorted.map((d) => (
+              <tr
+                key={d.jet_uuid}
+                className="log-row"
+                onClick={() => onRowClick(d)}
+              >
+                <td className="log-time">{formatTs(d.deploy_time)}</td>
+                <td>
+                  <span className="log-app-pill" style={{ color: colorForApp(d.project_name), borderColor: colorForApp(d.project_name) + "55", background: colorForApp(d.project_name) + "20" }}>
+                    {d.project_name}
+                  </span>
+                </td>
+                <td className="log-repo" title={d.repo_name}>{d.repo_name}</td>
+                <td>
+                  <span className="log-type-pill" style={{ color: colorForType(d.deploy_type), borderColor: colorForType(d.deploy_type) + "55", background: colorForType(d.deploy_type) + "20" }}>
+                    {d.deploy_type}
+                  </span>
+                </td>
+                <td>
+                  <span className={`log-status-pill log-status-${d.deploy_status.toLowerCase()}`}>
+                    {d.deploy_status}
+                  </span>
+                </td>
+                <td className="log-ticket">{d.change_ctrl_ticket}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function FilterIcon({ active }) {
+  return (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 24 24"
+      fill={active ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+    </svg>
+  );
+}
+
+function LogColumnHeader({
+  col,
+  rows,
+  sort,
+  onSortClick,
+  filters,
+  onApply,
+  isOpen,
+  onToggle,
+}) {
+  const sorted = sort.key === col.key;
+  const filterActive = !!filters[col.key] && filters[col.key].size > 0;
+  return (
+    <th className={`log-th${sorted ? " sorted" : ""}`}>
+      <div className="log-th-row">
+        <button
+          type="button"
+          className="log-th-sort"
+          onClick={onSortClick}
+        >
+          <span>{col.label}</span>
+          <span className="log-arrow">
+            {sorted ? (sort.dir === "asc" ? "▲" : "▼") : "↕"}
+          </span>
+        </button>
+        {col.filterable && (
+          <button
+            type="button"
+            className={`log-filter-trigger${filterActive ? " active" : ""}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle();
+            }}
+            aria-label={`Filter ${col.label}`}
+            title={`Filter ${col.label}`}
+          >
+            <FilterIcon active={filterActive} />
+          </button>
+        )}
+      </div>
+      {isOpen && col.filterable && (
+        <LogFilterPopover
+          col={col}
+          rows={rows}
+          current={filters[col.key]}
+          onApply={(set) => {
+            onApply(set);
+            onToggle();
+          }}
+          onClose={onToggle}
+        />
+      )}
+    </th>
+  );
+}
+
+function LogFilterPopover({ col, rows, current, onApply, onClose }) {
+  const ref = useRef(null);
+
+  const uniqueValues = useMemo(() => {
+    const set = new Set();
+    rows.forEach((r) => set.add(String(r[col.key])));
+    return [...set].sort();
+  }, [rows, col.key]);
+
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState(() => {
+    if (current && current.size > 0) return new Set(current);
+    return new Set(uniqueValues);
+  });
+
+  useEffect(() => {
+    function onDocClick(e) {
+      if (ref.current && !ref.current.contains(e.target)) onClose();
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [onClose]);
+
+  const filteredValues = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return uniqueValues;
+    return uniqueValues.filter((v) => v.toLowerCase().includes(q));
+  }, [uniqueValues, search]);
+
+  const toggle = (v) =>
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(v)) next.delete(v);
+      else next.add(v);
+      return next;
+    });
+
+  const selectAllFiltered = () =>
+    setSelected((s) => {
+      const next = new Set(s);
+      filteredValues.forEach((v) => next.add(v));
+      return next;
+    });
+  const clearAllFiltered = () =>
+    setSelected((s) => {
+      const next = new Set(s);
+      filteredValues.forEach((v) => next.delete(v));
+      return next;
+    });
+
+  const apply = () => {
+    if (selected.size === uniqueValues.length) onApply(null);
+    else onApply(selected);
+  };
+  const clear = () => onApply(null);
+
+  return (
+    <div
+      className="filter-popover"
+      ref={ref}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <input
+        type="search"
+        className="filter-search"
+        placeholder={`Search ${col.label}…`}
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        autoFocus
+      />
+      <div className="filter-quicks">
+        <button type="button" onClick={selectAllFiltered} className="filter-quick-btn">
+          Select all
+        </button>
+        <button type="button" onClick={clearAllFiltered} className="filter-quick-btn">
+          Clear
+        </button>
+      </div>
+      <div className="filter-options">
+        {filteredValues.length === 0 && (
+          <div className="filter-empty">No matches</div>
+        )}
+        {filteredValues.map((v) => (
+          <label key={v} className="filter-opt">
+            <input
+              type="checkbox"
+              checked={selected.has(v)}
+              onChange={() => toggle(v)}
+            />
+            <span title={v}>{v}</span>
+          </label>
+        ))}
+      </div>
+      <div className="filter-actions">
+        <button type="button" className="filter-btn-secondary" onClick={clear}>
+          Reset
+        </button>
+        <button type="button" className="filter-btn-primary" onClick={apply}>
+          Apply
+        </button>
+      </div>
     </div>
   );
 }
