@@ -42,7 +42,7 @@ export default function Header({ theme, onToggle, subtitle, onBrandClick }) {
           />
         </svg>
       </div>
-      <span className="ph-title">Deployment Metrics Dashboard</span>
+      <span className="ph-title">HLT Operations Portal</span>
     </>
   );
 
