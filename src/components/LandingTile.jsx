@@ -1,8 +1,10 @@
+import AnimatedNumber from "./AnimatedNumber";
+
 function ArrowRight() {
   return (
     <svg
-      width="16"
-      height="16"
+      width="14"
+      height="14"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
@@ -47,7 +49,9 @@ export default function LandingTile({
         <div className="landing-tile-meta">
           {meta.map((m, i) => (
             <div key={i} className="landing-meta-item">
-              <div className="landing-meta-value">{m.value}</div>
+              <div className="landing-meta-value">
+                <AnimatedNumber value={m.value} />
+              </div>
               <div className="landing-meta-label">{m.label}</div>
             </div>
           ))}

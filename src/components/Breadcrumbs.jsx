@@ -1,4 +1,5 @@
 export default function Breadcrumbs({ items }) {
+  if (!items || items.length === 0) return null;
   return (
     <nav className="breadcrumbs" aria-label="Breadcrumb">
       <ol>
@@ -17,7 +18,11 @@ export default function Breadcrumbs({ items }) {
               ) : (
                 <span className="crumb-current">{item.label}</span>
               )}
-              {!isLast && <span className="crumb-sep" aria-hidden="true">›</span>}
+              {!isLast && (
+                <span className="crumb-sep" aria-hidden="true">
+                  ›
+                </span>
+              )}
             </li>
           );
         })}
