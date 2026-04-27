@@ -384,10 +384,17 @@ export default function IntelligenceDashboard({
     openDrill(`Application · ${project}`, (d) => d.project_name === project);
   const drillByRepo = (repo) =>
     openDrill(`Repository · ${repo}`, (d) => d.repo_name === repo);
-  const drillByAppRepo = (project, repo) =>
+  const drillByAppRepo = (project, repo, troubledOnly = false) =>
     openDrill(
-      `${project} · ${repo}`,
-      (d) => d.project_name === project && d.repo_name === repo
+      troubledOnly
+        ? `${project} · ${repo} · Troubled (FAILED + ACK)`
+        : `${project} · ${repo}`,
+      (d) =>
+        d.project_name === project &&
+        d.repo_name === repo &&
+        (!troubledOnly ||
+          d.deploy_status === "FAILED" ||
+          d.deploy_status === "ACKNOWLEDGED")
     );
   const drillByMonth = (y, m, project) =>
     openDrill(
@@ -932,7 +939,9 @@ export default function IntelligenceDashboard({
           <HotspotHeatmap
             apps={intel.hotspot}
             repos={intel.hotspotCols}
-            onCellClick={(project, repo) => drillByAppRepo(project, repo)}
+            onCellClick={(project, cell) =>
+              drillByAppRepo(project, cell.repo, cell.troubled > 0)
+            }
           />
         </div>
       </div>
@@ -1284,8 +1293,12 @@ function HotspotHeatmap({ apps, repos, onCellClick }) {
                       background: `rgba(${hue},${alpha})`,
                       borderColor: c.total ? `rgba(${hue},0.65)` : "transparent",
                     }}
-                    onClick={() => c.total && onCellClick(row.project, c.repo)}
-                    title={`${row.project} · ${c.repo}: ${c.total} deploys (${c.failed} failed, ${c.ack} ack)`}
+                    onClick={() => c.total && onCellClick(row.project, c)}
+                    title={
+                      c.troubled > 0
+                        ? `${row.project} · ${c.repo}: click to see ${c.troubled} troubled of ${c.total} (${c.failed} failed, ${c.ack} ack)`
+                        : `${row.project} · ${c.repo}: ${c.total} deploys · all clean`
+                    }
                   >
                     {c.total > 0 && (
                       <span className="hot-cell-val">
