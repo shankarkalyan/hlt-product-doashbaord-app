@@ -12,6 +12,8 @@ import ChartModal from "./components/ChartModal";
 import AnimatedNumber from "./components/AnimatedNumber";
 import LandingTile from "./components/LandingTile";
 import Breadcrumbs from "./components/Breadcrumbs";
+import Tabs from "./components/Tabs";
+import IntelligenceDashboard from "./components/IntelligenceDashboard";
 
 ChartJS.register(...registerables, ChartDataLabels);
 
@@ -187,10 +189,12 @@ const pointerOnHover = (e, els) => {
 export default function App() {
   const [theme, setTheme] = useState("dark");
   const [drill, setDrill] = useState(null);
-  // expandedChart: id (string) of currently expanded chart
+  // expandedChart: chart-definition object {title, sub, render, footer, key} or null
   const [expandedChart, setExpandedChart] = useState(null);
   // view: 'home' | 'product' | 'dashboard'
   const [view, setView] = useState("home");
+  // tab inside the dashboard view: 'metrics' | 'intelligence'
+  const [tab, setTab] = useState("metrics");
 
   const goHome = () => setView("home");
   const goProduct = () => setView("product");
@@ -893,42 +897,50 @@ export default function App() {
   // Track all charts for the expand modal
   const CHART_DEFS = {
     donut: {
+      key: "donut",
       title: "Deploy Type Distribution",
       sub: "Share of each infrastructure type",
       render: () => <Doughnut data={donutData} options={donutOptions} />,
       footer: donutLegend,
     },
     statusBar: {
+      key: "statusBar",
       title: "Deploy Status Breakdown",
       sub: "SUCCESS · ACKNOWLEDGED · FAILED",
       render: () => <Bar data={statusBarData} options={statusBarOptions} />,
     },
     successRate: {
+      key: "successRate",
       title: "Success Rate by Application",
       sub: "% successful deploys per app (green=80%+)",
       render: () => <Bar data={successRateData} options={successRateOptions} />,
     },
     stacked: {
+      key: "stacked",
       title: "Deploy Types per Application — Stacked",
       sub: "Absolute deployment count by type per application",
       render: () => <Bar data={stackedData} options={stackedOptions} />,
     },
     radar: {
+      key: "radar",
       title: "Deploy Type Radar Coverage",
       sub: "Usage frequency across all applications",
       render: () => <Radar data={radarData} options={radarOptions} />,
     },
     timeline: {
+      key: "timeline",
       title: "Deployment Velocity — Monthly",
       sub: "Number of deployments per month",
       render: () => <Line data={timelineData} options={timelineOptions} />,
     },
     monthly: {
+      key: "monthly",
       title: "Monthly Deployments by Status",
       sub: "Grouped bar — SUCCESS vs ACKNOWLEDGED vs FAILED per month",
       render: () => <Bar data={monthlyData} options={monthlyOptions} />,
     },
     bubble: {
+      key: "bubble",
       title: "Success Rate vs Volume — Bubble",
       sub: "Bubble size = volume · Y-axis = success %",
       render: () => <Bubble data={bubbleData} options={bubbleOptions} />,
@@ -1061,7 +1073,27 @@ export default function App() {
       )}
 
       {view === "dashboard" && (
-        <DashboardView />
+        <>
+          <div className="section-wrap">
+            <Tabs
+              items={[
+                { id: "metrics", label: "Deployment Metrics" },
+                { id: "intelligence", label: "App × Repo Intelligence" },
+              ]}
+              active={tab}
+              onChange={setTab}
+            />
+          </div>
+          {tab === "metrics" && <DashboardView />}
+          {tab === "intelligence" && (
+            <IntelligenceDashboard
+              deployments={deployments}
+              isDark={isDark}
+              openDrill={openDrill}
+              setExpandedChart={setExpandedChart}
+            />
+          )}
+        </>
       )}
 
       <DrillPanel
@@ -1076,24 +1108,24 @@ export default function App() {
 
       <ChartModal
         open={!!expandedChart}
-        title={expandedChart ? CHART_DEFS[expandedChart].title : ""}
-        sub={expandedChart ? CHART_DEFS[expandedChart].sub : ""}
+        title={expandedChart ? expandedChart.title : ""}
+        sub={expandedChart ? expandedChart.sub : ""}
         onClose={() => setExpandedChart(null)}
       >
         {expandedChart && (
           <>
             <div
               className="cmodal-chart"
-              key={`expanded-${expandedChart}`}
+              key={`expanded-${expandedChart.key}`}
             >
-              {CHART_DEFS[expandedChart].render()}
+              {expandedChart.render()}
             </div>
-            {CHART_DEFS[expandedChart].footer && (
+            {expandedChart.footer && (
               <div
                 className="cmodal-footer"
-                key={`expanded-footer-${expandedChart}`}
+                key={`expanded-footer-${expandedChart.key}`}
               >
-                {CHART_DEFS[expandedChart].footer}
+                {expandedChart.footer}
               </div>
             )}
           </>
@@ -1113,7 +1145,7 @@ export default function App() {
         <ChartCard
           title={CHART_DEFS.donut.title}
           sub="Share of each infrastructure type · click a slice to drill in"
-          onExpand={() => setExpandedChart("donut")}
+          onExpand={() => setExpandedChart(CHART_DEFS.donut)}
           footer={donutLegend}
         >
           <Doughnut data={donutData} options={donutOptions} />
@@ -1121,14 +1153,14 @@ export default function App() {
         <ChartCard
           title={CHART_DEFS.statusBar.title}
           sub="SUCCESS · ACKNOWLEDGED · FAILED · click a bar"
-          onExpand={() => setExpandedChart("statusBar")}
+          onExpand={() => setExpandedChart(CHART_DEFS.statusBar)}
         >
           <Bar data={statusBarData} options={statusBarOptions} />
         </ChartCard>
         <ChartCard
           title={CHART_DEFS.successRate.title}
           sub="% successful per app · click a bar"
-          onExpand={() => setExpandedChart("successRate")}
+          onExpand={() => setExpandedChart(CHART_DEFS.successRate)}
         >
           <Bar data={successRateData} options={successRateOptions} />
         </ChartCard>
@@ -1139,7 +1171,7 @@ export default function App() {
         <ChartCard
           title={CHART_DEFS.stacked.title}
           sub="Click a stacked segment to see deployments for that app + type"
-          onExpand={() => setExpandedChart("stacked")}
+          onExpand={() => setExpandedChart(CHART_DEFS.stacked)}
           height={250}
         >
           <Bar data={stackedData} options={stackedOptions} />
@@ -1147,7 +1179,7 @@ export default function App() {
         <ChartCard
           title={CHART_DEFS.radar.title}
           sub="Usage frequency · click a point"
-          onExpand={() => setExpandedChart("radar")}
+          onExpand={() => setExpandedChart(CHART_DEFS.radar)}
           height={250}
         >
           <Radar data={radarData} options={radarOptions} />
@@ -1180,7 +1212,7 @@ export default function App() {
         <ChartCard
           title={CHART_DEFS.timeline.title}
           sub="Click a point to see deployments in that month"
-          onExpand={() => setExpandedChart("timeline")}
+          onExpand={() => setExpandedChart(CHART_DEFS.timeline)}
         >
           <Line data={timelineData} options={timelineOptions} />
         </ChartCard>
@@ -1208,14 +1240,14 @@ export default function App() {
         <ChartCard
           title={CHART_DEFS.monthly.title}
           sub="Grouped bar — SUCCESS vs ACK vs FAILED per month"
-          onExpand={() => setExpandedChart("monthly")}
+          onExpand={() => setExpandedChart(CHART_DEFS.monthly)}
         >
           <Bar data={monthlyData} options={monthlyOptions} />
         </ChartCard>
         <ChartCard
           title={CHART_DEFS.bubble.title}
           sub="Bubble size = volume · click a bubble"
-          onExpand={() => setExpandedChart("bubble")}
+          onExpand={() => setExpandedChart(CHART_DEFS.bubble)}
           footer={bubbleLegend}
         >
           <Bubble data={bubbleData} options={bubbleOptions} />
