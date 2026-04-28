@@ -3,6 +3,7 @@ import { Doughnut, Bar, Radar, Line, Bubble } from "react-chartjs-2";
 import { Chart as ChartJS, registerables } from "chart.js";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import deployments from "./data/cmh-deployment-data.json";
+import incidents from "./data/cmh-incident-data.json";
 import Header from "./components/Header";
 import KPICards from "./components/KPICards";
 import RiskHeatmap from "./components/RiskHeatmap";
@@ -14,6 +15,7 @@ import LandingTile from "./components/LandingTile";
 import Breadcrumbs from "./components/Breadcrumbs";
 import Tabs from "./components/Tabs";
 import IntelligenceDashboard from "./components/IntelligenceDashboard";
+import IncidentDashboard, { INCIDENT_SCHEMA } from "./components/IncidentDashboard";
 
 ChartJS.register(...registerables, ChartDataLabels);
 
@@ -125,6 +127,24 @@ const LAYERS_ICON = (
   </svg>
 );
 
+const ALERT_ICON = (
+  <svg
+    viewBox="0 0 24 24"
+    width="28"
+    height="28"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+    <line x1="12" y1="9" x2="12" y2="13" />
+    <line x1="12" y1="17" x2="12.01" y2="17" />
+  </svg>
+);
+
 function ExpandIcon() {
   return (
     <svg
@@ -199,6 +219,7 @@ export default function App() {
   const goHome = () => setView("home");
   const goProduct = () => setView("product");
   const goDashboard = () => setView("dashboard");
+  const goIncidents = () => setView("incidents");
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -331,6 +352,10 @@ export default function App() {
   const openDrill = (title, predicate) => {
     const rows = deployments.filter(predicate);
     setDrill({ title, rows });
+  };
+  const openIncidentDrill = (title, predicate) => {
+    const rows = incidents.filter(predicate);
+    setDrill({ title, rows, schema: INCIDENT_SCHEMA });
   };
   const drillByType = (type) =>
     openDrill(`Deploy type · ${type}`, (d) => d.deploy_type === type);
@@ -954,11 +979,46 @@ export default function App() {
     setDrill((d) => (d ? { ...d, selected: undefined } : d));
   const closeDrill = () => setDrill(null);
 
+  // ---- Quick incident summary for the dashboards tile ----
+  const incidentSummary = useMemo(() => {
+    const total = incidents.length;
+    const byPrio = incidents.reduce((acc, d) => {
+      acc[d.Priority] = (acc[d.Priority] || 0) + 1;
+      return acc;
+    }, {});
+    const ttrs = incidents
+      .map((d) => parseFloat(d["Time to Resolve (Days)"]))
+      .filter((n) => isFinite(n));
+    const avgTtr = ttrs.length
+      ? (ttrs.reduce((a, b) => a + b, 0) / ttrs.length).toFixed(1)
+      : "0.0";
+    const months = [...new Set(incidents.map((d) => d["Reporting Month"]))];
+    return {
+      total,
+      p1: byPrio.P1 || 0,
+      p2: byPrio.P2 || 0,
+      avgTtr,
+      months,
+    };
+  }, []);
+
   const headerSubtitle = (() => {
     if (view === "home")
       return "Operations Portal · Choose a product to explore";
     if (view === "product")
       return `${stats.productName || "Product"} dashboards`;
+    if (view === "incidents") {
+      const apps = [...new Set(incidents.map((d) => d.App))].filter(Boolean);
+      return [
+        "Home Lending",
+        "Chase MyHome",
+        apps.join(" · "),
+        `${incidentSummary.months.join("–")} 2026`,
+        `${incidentSummary.total} incidents`,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+    }
     return [
       stats.productLine,
       stats.productName,
@@ -976,6 +1036,8 @@ export default function App() {
     if (view !== "home") crumbs.push({ label: "HLTCMH", onClick: goProduct });
     if (view === "dashboard")
       crumbs.push({ label: "Deployment Metrics Dashboard" });
+    if (view === "incidents")
+      crumbs.push({ label: "Incident Metrics Dashboard" });
     return crumbs;
   })();
 
@@ -1068,6 +1130,29 @@ export default function App() {
               cta="Open dashboard"
               onClick={goDashboard}
             />
+            <LandingTile
+              icon={ALERT_ICON}
+              eyebrow="Dashboard"
+              title="Incident Metrics Dashboard"
+              subtitle="Priority · TTR · category · resolver workload"
+              description="Closed incidents across the Chase My Home apps with priority mix, time-to-resolve vs SLA, customer impact, and a sortable filterable incident log."
+              meta={[
+                {
+                  value: incidentSummary.total,
+                  label: "Incidents",
+                },
+                {
+                  value: incidentSummary.p1 + incidentSummary.p2,
+                  label: "P1 + P2",
+                },
+                {
+                  value: `${incidentSummary.avgTtr}d`,
+                  label: "Avg TTR",
+                },
+              ]}
+              cta="Open dashboard"
+              onClick={goIncidents}
+            />
           </div>
         </section>
       )}
@@ -1096,11 +1181,21 @@ export default function App() {
         </>
       )}
 
+      {view === "incidents" && (
+        <IncidentDashboard
+          incidents={incidents}
+          isDark={isDark}
+          setExpandedChart={setExpandedChart}
+          openDrill={openIncidentDrill}
+        />
+      )}
+
       <DrillPanel
         open={!!drill}
         title={drill?.title || ""}
         rows={drill?.rows || []}
         selected={drill?.selected || null}
+        schema={drill?.schema}
         onSelect={onSelectRow}
         onBackToList={backToList}
         onClose={closeDrill}

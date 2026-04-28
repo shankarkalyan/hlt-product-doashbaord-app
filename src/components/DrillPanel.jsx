@@ -55,31 +55,108 @@ function relativeTime(ts) {
   }
 }
 
-const COLUMNS = [
-  { id: "project_name", label: "Project", type: "text" },
-  { id: "repo_name", label: "Repository", type: "text" },
-  { id: "deploy_type", label: "Type", type: "badge-type" },
-  { id: "deploy_status", label: "Status", type: "badge-status" },
-  { id: "deploy_time", label: "Date", type: "date" },
-];
-
-const DETAIL_FIELDS = [
-  ["product_line", "Product Line"],
-  ["product_name", "Product"],
-  ["application_id", "Application ID"],
-  ["application_name", "Application"],
-  ["project_name", "Project"],
-  ["repo_name", "Repository"],
-  ["environment", "Environment"],
-  ["event_type", "Event Type"],
-  ["deploy_type", "Deploy Type"],
-  ["deploy_status", "Deploy Status"],
-  ["deploy_time", "Deploy Time"],
-  ["change_ctrl_ticket", "Change Ticket"],
-  ["jet_uuid", "Jet UUID"],
-  ["jet_id", "Jet ID"],
-  ["key_appid_projkey_repo", "Composite Key"],
-];
+// Default schema = deployments. New callers can pass a custom schema via the
+// drill state to render different entity types (e.g., incidents).
+const DEPLOYMENT_SCHEMA = {
+  entity: "Deployment",
+  pluralEntity: "deployments",
+  emptyText: "No deployments match this slice.",
+  rowKey: (d) => d.jet_uuid || `${d.application_id}-${d.deploy_time}`,
+  columns: [
+    {
+      id: "project_name",
+      label: "Project",
+      filterValue: (d) => d.project_name,
+      render: (d) => (
+        <>
+          <div className="drill-cell-primary">{d.project_name}</div>
+          <div className="drill-cell-secondary">{d.application_name}</div>
+        </>
+      ),
+    },
+    {
+      id: "repo_name",
+      label: "Repository",
+      filterValue: (d) => d.repo_name,
+      render: (d) => (
+        <span className="tbl-mono" style={{ fontSize: 11 }}>
+          {d.repo_name}
+        </span>
+      ),
+    },
+    {
+      id: "deploy_type",
+      label: "Type",
+      filterValue: (d) => d.deploy_type,
+      render: (d) => <span className="badge b-type">{d.deploy_type}</span>,
+    },
+    {
+      id: "deploy_status",
+      label: "Status",
+      filterValue: (d) => d.deploy_status,
+      render: (d) => (
+        <span className={`badge ${STATUS_BADGE[d.deploy_status] || "b-ack"}`}>
+          {d.deploy_status}
+        </span>
+      ),
+    },
+    {
+      id: "deploy_time",
+      label: "Date",
+      filterValue: (d) => d.deploy_time,
+      render: (d) => (
+        <>
+          <div className="tbl-mono" style={{ fontSize: 11 }}>
+            {formatTime(d.deploy_time)}
+          </div>
+          <div style={{ fontSize: 10, color: "var(--ts)", marginTop: 2 }}>
+            {relativeTime(d.deploy_time)}
+          </div>
+        </>
+      ),
+    },
+  ],
+  detail: {
+    title: (d) => d.repo_name,
+    subtitle: (d) => `${d.project_name} · ${d.application_name}`,
+    pills: (d) => [
+      <span key="t" className="badge b-type">{d.deploy_type}</span>,
+      <span
+        key="s"
+        className={`badge ${STATUS_BADGE[d.deploy_status] || "b-ack"}`}
+      >
+        {d.deploy_status}
+      </span>,
+      <span
+        key="e"
+        className="badge"
+        style={{ background: "rgba(148,163,184,0.14)", color: "var(--tm)" }}
+      >
+        {d.environment}
+      </span>,
+    ],
+    fields: [
+      ["product_line", "Product Line"],
+      ["product_name", "Product"],
+      ["application_id", "Application ID"],
+      ["application_name", "Application"],
+      ["project_name", "Project"],
+      ["repo_name", "Repository"],
+      ["environment", "Environment"],
+      ["event_type", "Event Type"],
+      ["deploy_type", "Deploy Type"],
+      ["deploy_status", "Deploy Status"],
+      ["deploy_time", "Deploy Time"],
+      ["change_ctrl_ticket", "Change Ticket"],
+      ["jet_uuid", "Jet UUID"],
+      ["jet_id", "Jet ID"],
+      ["key_appid_projkey_repo", "Composite Key"],
+    ],
+    formatField: (key, value) =>
+      key === "deploy_time" ? formatTime(value) : String(value ?? "—"),
+    monoFields: new Set(["jet_id"]),
+  },
+};
 
 function CloseIcon() {
   return (
@@ -139,7 +216,9 @@ export default function DrillPanel({
   onSelect,
   onBackToList,
   onClose,
+  schema,
 }) {
+  const sch = schema || DEPLOYMENT_SCHEMA;
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => {
@@ -164,13 +243,13 @@ export default function DrillPanel({
           <div className="drill-head-text">
             <div className="drill-eyebrow">
               {inDetail
-                ? "Deployment record"
+                ? `${sch.entity} record`
                 : `Drill-down · ${rows.length} record${
                     rows.length === 1 ? "" : "s"
                   }`}
             </div>
             <div className="drill-title">
-              {inDetail ? selected.repo_name : title}
+              {inDetail ? sch.detail.title(selected) : title}
             </div>
           </div>
           <div className="drill-head-actions">
@@ -198,9 +277,9 @@ export default function DrillPanel({
 
         <div className="drill-body">
           {inDetail ? (
-            <DeploymentDetailView record={selected} />
+            <DetailView record={selected} schema={sch} />
           ) : (
-            <FilteredPagedList rows={rows} onSelect={onSelect} />
+            <FilteredPagedList rows={rows} onSelect={onSelect} schema={sch} />
           )}
         </div>
       </aside>
@@ -210,11 +289,15 @@ export default function DrillPanel({
 
 // ----------------- List with filters + pagination -----------------
 
-function FilteredPagedList({ rows, onSelect }) {
+function FilteredPagedList({ rows, onSelect, schema }) {
+  const columns = schema.columns;
   // filters: column id -> Set<string> of allowed display values (raw values, stringified)
   const [filters, setFilters] = useState({});
   const [openFilter, setOpenFilter] = useState(null);
   const [page, setPage] = useState(1);
+
+  const filterByCol = (col) =>
+    col.filterValue ? col.filterValue : (d) => d[col.id];
 
   const filteredRows = useMemo(() => {
     const entries = Object.entries(filters).filter(
@@ -222,9 +305,13 @@ function FilteredPagedList({ rows, onSelect }) {
     );
     if (entries.length === 0) return rows;
     return rows.filter((r) =>
-      entries.every(([col, set]) => set.has(String(r[col])))
+      entries.every(([colId, set]) => {
+        const col = columns.find((c) => c.id === colId);
+        const v = col ? filterByCol(col)(r) : r[colId];
+        return set.has(String(v == null ? "" : v));
+      })
     );
-  }, [rows, filters]);
+  }, [rows, filters, columns]);
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -256,7 +343,7 @@ function FilteredPagedList({ rows, onSelect }) {
   const activeFilterCount = Object.keys(filters).length;
 
   if (rows.length === 0) {
-    return <div className="drill-empty">No deployments match this slice.</div>;
+    return <div className="drill-empty">{schema.emptyText}</div>;
   }
 
   return (
@@ -281,7 +368,7 @@ function FilteredPagedList({ rows, onSelect }) {
       <table className="tbl drill-list-table">
         <thead>
           <tr>
-            {COLUMNS.map((col) => (
+            {columns.map((col) => (
               <ColumnHeader
                 key={col.id}
                 col={col}
@@ -301,7 +388,7 @@ function FilteredPagedList({ rows, onSelect }) {
           {pageRows.length === 0 && (
             <tr>
               <td
-                colSpan={COLUMNS.length + 1}
+                colSpan={columns.length + 1}
                 style={{ textAlign: "center", padding: 32 }}
               >
                 No rows match the active filters.
@@ -310,7 +397,7 @@ function FilteredPagedList({ rows, onSelect }) {
           )}
           {pageRows.map((d) => (
             <tr
-              key={d.jet_uuid || `${d.application_id}-${d.deploy_time}`}
+              key={schema.rowKey(d)}
               className="drill-row"
               onClick={() => onSelect(d)}
               role="button"
@@ -322,37 +409,9 @@ function FilteredPagedList({ rows, onSelect }) {
                 }
               }}
             >
-              <td>
-                <div className="drill-cell-primary">{d.project_name}</div>
-                <div className="drill-cell-secondary">
-                  {d.application_name}
-                </div>
-              </td>
-              <td className="tbl-mono" style={{ fontSize: 11 }}>
-                {d.repo_name}
-              </td>
-              <td>
-                <span className="badge b-type">{d.deploy_type}</span>
-              </td>
-              <td>
-                <span
-                  className={`badge ${
-                    STATUS_BADGE[d.deploy_status] || "b-ack"
-                  }`}
-                >
-                  {d.deploy_status}
-                </span>
-              </td>
-              <td>
-                <div className="tbl-mono" style={{ fontSize: 11 }}>
-                  {formatTime(d.deploy_time)}
-                </div>
-                <div
-                  style={{ fontSize: 10, color: "var(--ts)", marginTop: 2 }}
-                >
-                  {relativeTime(d.deploy_time)}
-                </div>
-              </td>
+              {columns.map((col) => (
+                <td key={col.id}>{col.render(d)}</td>
+              ))}
               <td className="drill-row-arrow">›</td>
             </tr>
           ))}
@@ -411,12 +470,16 @@ function ColumnHeader({ col, rows, filters, onApply, isOpen, onToggle }) {
 function FilterPopover({ col, rows, current, onApply, onClose }) {
   const ref = useRef(null);
 
-  // unique stringified values for this column
+  // unique stringified values for this column (use filterValue getter if provided)
   const uniqueValues = useMemo(() => {
     const set = new Set();
-    rows.forEach((r) => set.add(String(r[col.id])));
+    const getValue = col.filterValue ? col.filterValue : (r) => r[col.id];
+    rows.forEach((r) => {
+      const v = getValue(r);
+      set.add(String(v == null ? "" : v));
+    });
     return [...set].sort();
-  }, [rows, col.id]);
+  }, [rows, col]);
 
   const [search, setSearch] = useState("");
   // local working selection: Set<string>; null means "all selected"
@@ -602,41 +665,28 @@ function Pagination({ page, totalPages, totalRows, onChange }) {
 
 // ----------------- Detail view -----------------
 
-function DeploymentDetailView({ record }) {
+function DetailView({ record, schema }) {
+  const detail = schema.detail;
+  const monoFields = detail.monoFields || new Set();
+  const fmt = detail.formatField || ((_k, v) => String(v ?? "—"));
+  const pills = detail.pills ? detail.pills(record) : [];
+  const subtitle = detail.subtitle ? detail.subtitle(record) : null;
   return (
     <div className="drill-detail">
       <div className="drill-detail-banner">
-        <div className="drill-detail-pills">
-          <span className="badge b-type">{record.deploy_type}</span>
-          <span
-            className={`badge ${STATUS_BADGE[record.deploy_status] || "b-ack"}`}
-          >
-            {record.deploy_status}
-          </span>
-          <span
-            className="badge"
-            style={{
-              background: "rgba(148,163,184,0.14)",
-              color: "var(--tm)",
-            }}
-          >
-            {record.environment}
-          </span>
+        {pills.length > 0 && <div className="drill-detail-pills">{pills}</div>}
+        <div className="drill-detail-title tbl-mono">
+          {detail.title(record)}
         </div>
-        <div className="drill-detail-title tbl-mono">{record.repo_name}</div>
-        <div className="drill-detail-sub">
-          {record.project_name} · {record.application_name}
-        </div>
+        {subtitle && <div className="drill-detail-sub">{subtitle}</div>}
       </div>
 
       <dl className="drill-detail-grid">
-        {DETAIL_FIELDS.map(([key, label]) => (
+        {detail.fields.map(([key, label]) => (
           <div key={key} className="drill-detail-row">
             <dt>{label}</dt>
-            <dd className={key === "jet_id" ? "tbl-mono break" : "tbl-mono"}>
-              {key === "deploy_time"
-                ? formatTime(record[key])
-                : String(record[key])}
+            <dd className={`tbl-mono${monoFields.has(key) ? " break" : ""}`}>
+              {fmt(key, record[key])}
             </dd>
           </div>
         ))}

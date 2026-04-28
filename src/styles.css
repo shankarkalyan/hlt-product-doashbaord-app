@@ -2100,6 +2100,143 @@ html[data-theme="light"] .hot-cell-val {
   cursor: default;
 }
 
+/* ---------------- Incident SubCategory progress bars ---------------- */
+.pbar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.pbar-list.is-tall {
+  max-height: none;
+  height: 100%;
+  padding-right: 8px;
+}
+.pbar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: 0;
+  padding: 4px 6px;
+  border-radius: 6px;
+  text-align: left;
+  width: 100%;
+}
+.pbar-row.pbar-clickable {
+  cursor: pointer;
+  transition: background 140ms ease;
+}
+.pbar-row.pbar-clickable:hover {
+  background: var(--grid);
+}
+.pbar-lbl {
+  font-size: 11px;
+  font-family: "JetBrains Mono", monospace;
+  color: var(--tm);
+  width: 150px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pbar-bg {
+  flex: 1;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--grid);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.pbar-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.pbar-fill.tone-ok {
+  background: linear-gradient(90deg, #27ae60, #2ecc71);
+}
+.pbar-fill.tone-warn {
+  background: linear-gradient(90deg, #e67e22, #f39c12);
+}
+.pbar-fill.tone-bad {
+  background: linear-gradient(90deg, #e74c3c, #ef6c54);
+}
+.pbar-val {
+  font-size: 11px;
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 700;
+  width: 42px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.pbar-val.tone-ok {
+  color: #27ae60;
+}
+.pbar-val.tone-warn {
+  color: #e67e22;
+}
+.pbar-val.tone-bad {
+  color: #e74c3c;
+}
+
+/* ---------------- Incident log specifics ---------------- */
+.log-ttr {
+  font-family: "JetBrains Mono", monospace;
+  font-feature-settings: "tnum";
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.log-ttr.sla-ok {
+  color: #27ae60;
+}
+.log-ttr.sla-warn {
+  color: #e67e22;
+}
+.log-ttr.sla-breach {
+  color: #e74c3c;
+}
+.log-cat {
+  font-size: 11.5px;
+  color: var(--tm);
+  white-space: nowrap;
+}
+.log-resolver {
+  font-size: 11.5px;
+  color: var(--tm);
+  white-space: nowrap;
+}
+.log-impact {
+  font-family: "JetBrains Mono", monospace;
+  font-feature-settings: "tnum";
+  font-size: 11.5px;
+  text-align: right;
+}
+.log-desc {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ts);
+  font-size: 11.5px;
+}
+.log-subcat-pill {
+  display: inline-block;
+  background: rgba(52, 152, 219, 0.16);
+  color: #3498db;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ---------------- Lifecycle expanded view ---------------- */
 .lifecycle-expand {
   display: flex;
@@ -2187,6 +2324,9 @@ html[data-theme="light"] .hot-cell-val {
 }
 .log-row:hover {
   background: var(--grid);
+}
+.log-row-clickable {
+  cursor: pointer;
 }
 .log-row td {
   padding: 8px 12px;
