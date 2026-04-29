@@ -1085,7 +1085,7 @@ export default function App() {
     if (view === "incidents")
       crumbs.push({ label: "Incident Metrics Dashboard" });
     if (view === "farm")
-      crumbs.push({ label: "FARM Findings Intelligence" });
+      crumbs.push({ label: "FARM Findings Dashbaord" });
     return crumbs;
   })();
 
@@ -1204,7 +1204,7 @@ export default function App() {
             <LandingTile
               icon={SHIELD_ICON}
               eyebrow="Dashboard"
-              title="FARM Findings Intelligence"
+              title="FARM Findings Dashbaord"
               subtitle="Open findings · severity · criticality · ownership"
               description="Security and control findings across the Chase My Home apps with deadline status, severity & criticality mix, owner workload, and a sortable filterable findings register."
               meta={[
