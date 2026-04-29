@@ -2100,6 +2100,306 @@ html[data-theme="light"] .hot-cell-val {
   cursor: default;
 }
 
+/* ---------------- FARM dashboard ---------------- */
+.farm-ribbon {
+  display: flex;
+  height: 28px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.farm-rib-seg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  font-family: "JetBrains Mono", monospace;
+  color: #fff;
+  border: 0;
+  cursor: pointer;
+  transition: filter 140ms ease, transform 140ms ease;
+}
+.farm-rib-seg:hover {
+  filter: brightness(1.15);
+}
+.farm-ribbon-legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.farm-ribbon-leg-item {
+  font-size: 11.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ts);
+}
+.farm-ribbon-leg-item .leg-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+.farm-ribbon-leg-item b {
+  font-family: "JetBrains Mono", monospace;
+  font-feature-settings: "tnum";
+}
+
+/* App meter */
+.farm-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+.farm-meter.is-tall {
+  max-height: none;
+  height: 100%;
+}
+.farm-meter-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: 0;
+  padding: 5px 6px;
+  border-radius: 6px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 140ms ease;
+  width: 100%;
+}
+.farm-meter-row:hover {
+  background: var(--grid);
+}
+.farm-meter-label {
+  flex: 1;
+  font-size: 11px;
+  font-family: "JetBrains Mono", monospace;
+  color: var(--tm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.farm-meter-bg {
+  flex: 1;
+  height: 11px;
+  border-radius: 6px;
+  background: var(--grid);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  position: relative;
+}
+.farm-meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: 6px;
+  transition: width 1000ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.farm-meter-val {
+  font-size: 11px;
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 800;
+  width: 70px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* Heatmap */
+.farm-hm {
+  overflow-x: auto;
+}
+.farm-hm-head,
+.farm-hm-row {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 4px;
+  align-items: center;
+}
+.farm-hm-rspacer,
+.farm-hm-rlbl {
+  width: 130px;
+  flex-shrink: 0;
+}
+.farm-hm-rlbl {
+  font-size: 10px;
+  font-family: "JetBrains Mono", monospace;
+  color: var(--ts);
+  text-align: right;
+  padding-right: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.farm-hm-clbl {
+  flex: 1;
+  min-width: 60px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--ts);
+  text-align: center;
+  word-break: break-word;
+  line-height: 1.3;
+}
+.farm-hm-cell {
+  flex: 1;
+  min-width: 60px;
+  height: 36px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  font-size: 11.5px;
+  font-weight: 800;
+  font-family: "JetBrains Mono", monospace;
+  cursor: default;
+  transition: transform 140ms ease, filter 140ms ease;
+}
+.farm-hm-cell.has-data {
+  cursor: pointer;
+}
+.farm-hm-cell.has-data:hover {
+  transform: scale(1.07);
+  filter: brightness(1.15);
+}
+
+/* Owner cards */
+.farm-owner-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(195px, 1fr));
+  gap: 10px;
+}
+.farm-owner-grid.is-tall {
+  height: 100%;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+.farm-owner-card {
+  appearance: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  padding: 12px 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 140ms ease, background 140ms ease;
+  position: relative;
+  overflow: hidden;
+}
+.farm-owner-card:hover {
+  transform: translateY(-1px);
+  background: var(--grid);
+}
+.farm-owner-name {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--tp);
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.farm-owner-stats {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.farm-owner-stat {
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: "JetBrains Mono", monospace;
+  letter-spacing: 0.3px;
+}
+.farm-owner-stat.tone-red {
+  background: rgba(231, 76, 60, 0.15);
+  color: #e74c3c;
+}
+.farm-owner-stat.tone-orange {
+  background: rgba(230, 126, 34, 0.15);
+  color: #e67e22;
+}
+
+/* Top priority timeline */
+.farm-tl {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 290px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+.farm-tl.is-tall {
+  max-height: none;
+  height: 100%;
+}
+.farm-tl-item {
+  display: flex;
+  gap: 11px;
+  padding: 7px 6px 9px;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+  position: relative;
+  transition: background 140ms ease;
+}
+.farm-tl-item:hover {
+  background: var(--grid);
+}
+.farm-tl-item:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 19px;
+  top: 32px;
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+}
+.farm-tl-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9.5px;
+  font-weight: 800;
+  font-family: "JetBrains Mono", monospace;
+  color: #fff;
+}
+.farm-tl-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.farm-tl-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--tp);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.farm-tl-sub {
+  font-size: 11px;
+  color: var(--ts);
+  line-height: 1.5;
+}
+.farm-tl-score {
+  font-family: "JetBrains Mono", monospace;
+  color: var(--tp);
+  font-weight: 700;
+}
+
 /* ---------------- Incident SubCategory progress bars ---------------- */
 .pbar-list {
   display: flex;

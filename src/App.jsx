@@ -4,6 +4,7 @@ import { Chart as ChartJS, registerables } from "chart.js";
 import ChartDataLabels from "chartjs-plugin-datalabels";
 import deployments from "./data/cmh-deployment-data.json";
 import incidents from "./data/cmh-incident-data.json";
+import findings from "./data/farm-break-data.json";
 import Header from "./components/Header";
 import KPICards from "./components/KPICards";
 import RiskHeatmap from "./components/RiskHeatmap";
@@ -16,6 +17,7 @@ import Breadcrumbs from "./components/Breadcrumbs";
 import Tabs from "./components/Tabs";
 import IntelligenceDashboard from "./components/IntelligenceDashboard";
 import IncidentDashboard, { INCIDENT_SCHEMA } from "./components/IncidentDashboard";
+import FarmDashboard, { FARM_SCHEMA } from "./components/FarmDashboard";
 
 ChartJS.register(...registerables, ChartDataLabels);
 
@@ -145,6 +147,23 @@ const ALERT_ICON = (
   </svg>
 );
 
+const SHIELD_ICON = (
+  <svg
+    viewBox="0 0 24 24"
+    width="28"
+    height="28"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+    <path d="m9 12 2 2 4-4" />
+  </svg>
+);
+
 function ExpandIcon() {
   return (
     <svg
@@ -220,6 +239,7 @@ export default function App() {
   const goProduct = () => setView("product");
   const goDashboard = () => setView("dashboard");
   const goIncidents = () => setView("incidents");
+  const goFarm = () => setView("farm");
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -356,6 +376,10 @@ export default function App() {
   const openIncidentDrill = (title, predicate) => {
     const rows = incidents.filter(predicate);
     setDrill({ title, rows, schema: INCIDENT_SCHEMA });
+  };
+  const openFarmDrill = (title, predicate) => {
+    const rows = findings.filter(predicate);
+    setDrill({ title, rows, schema: FARM_SCHEMA });
   };
   const drillByType = (type) =>
     openDrill(`Deploy type · ${type}`, (d) => d.deploy_type === type);
@@ -980,6 +1004,16 @@ export default function App() {
   const closeDrill = () => setDrill(null);
 
   // ---- Quick incident summary for the dashboards tile ----
+  const farmSummary = useMemo(() => {
+    const total = findings.length;
+    const overdue = findings.filter(
+      (d) => d["Current Target Date Age Status"] === "Overdue"
+    ).length;
+    const s1 = findings.filter((d) => d["Severity"] === "S1").length;
+    const apps = new Set(findings.map((d) => d["Application Name"])).size;
+    return { total, overdue, s1, apps };
+  }, []);
+
   const incidentSummary = useMemo(() => {
     const total = incidents.length;
     const byPrio = incidents.reduce((acc, d) => {
@@ -1019,6 +1053,18 @@ export default function App() {
         .filter(Boolean)
         .join(" · ");
     }
+    if (view === "farm") {
+      return [
+        "Home Lending",
+        "Chase MyHome",
+        `${farmSummary.apps} applications`,
+        `${farmSummary.total} findings`,
+        `${farmSummary.overdue} overdue`,
+        `${farmSummary.s1} S1`,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+    }
     return [
       stats.productLine,
       stats.productName,
@@ -1038,6 +1084,8 @@ export default function App() {
       crumbs.push({ label: "Deployment Metrics Dashboard" });
     if (view === "incidents")
       crumbs.push({ label: "Incident Metrics Dashboard" });
+    if (view === "farm")
+      crumbs.push({ label: "FARM Findings Intelligence" });
     return crumbs;
   })();
 
@@ -1153,6 +1201,29 @@ export default function App() {
               cta="Open dashboard"
               onClick={goIncidents}
             />
+            <LandingTile
+              icon={SHIELD_ICON}
+              eyebrow="Dashboard"
+              title="FARM Findings Intelligence"
+              subtitle="Open findings · severity · criticality · ownership"
+              description="Security and control findings across the Chase My Home apps with deadline status, severity & criticality mix, owner workload, and a sortable filterable findings register."
+              meta={[
+                {
+                  value: farmSummary.total,
+                  label: "Findings",
+                },
+                {
+                  value: farmSummary.overdue,
+                  label: "Overdue",
+                },
+                {
+                  value: farmSummary.s1,
+                  label: "S1 Severity",
+                },
+              ]}
+              cta="Open dashboard"
+              onClick={goFarm}
+            />
           </div>
         </section>
       )}
@@ -1187,6 +1258,15 @@ export default function App() {
           isDark={isDark}
           setExpandedChart={setExpandedChart}
           openDrill={openIncidentDrill}
+        />
+      )}
+
+      {view === "farm" && (
+        <FarmDashboard
+          findings={findings}
+          isDark={isDark}
+          setExpandedChart={setExpandedChart}
+          openDrill={openFarmDrill}
         />
       )}
 
