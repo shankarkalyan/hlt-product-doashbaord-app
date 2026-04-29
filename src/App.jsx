@@ -359,12 +359,12 @@ export default function App() {
     formatter: (v) => (v && v !== 0 ? v : ""),
   };
   const labelInside = {
-    color: "#ffffff",
+    color: isDark ? "#ffffff" : "#0f172a",
     font: { weight: 700, size: 11, family: "'JetBrains Mono', monospace" },
     anchor: "center",
     align: "center",
     formatter: (v) => (v && v !== 0 ? v : ""),
-    textStrokeColor: "rgba(0,0,0,0.45)",
+    textStrokeColor: isDark ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.65)",
     textStrokeWidth: 2,
   };
 
@@ -879,11 +879,11 @@ export default function App() {
         },
       },
       datalabels: {
-        color: "#fff",
+        color: isDark ? "#fff" : "#0f172a",
         font: { weight: 800, size: 13, family: "'JetBrains Mono', monospace" },
         anchor: "center",
         align: "center",
-        textStrokeColor: "rgba(0,0,0,0.5)",
+        textStrokeColor: isDark ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.65)",
         textStrokeWidth: 2,
         formatter: (v) => v.cnt,
       },

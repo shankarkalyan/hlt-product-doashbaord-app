@@ -117,12 +117,12 @@ export default function IntelligenceDashboard({
     formatter: (v) => (v && v !== 0 ? v : ""),
   };
   const labelInside = {
-    color: "#ffffff",
+    color: isDark ? "#ffffff" : "#0f172a",
     font: { weight: 700, size: 11, family: "'JetBrains Mono', monospace" },
     anchor: "center",
     align: "center",
     formatter: (v) => (v && v !== 0 ? v : ""),
-    textStrokeColor: "rgba(0,0,0,0.45)",
+    textStrokeColor: isDark ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.65)",
     textStrokeWidth: 2,
   };
 
@@ -679,12 +679,12 @@ export default function IntelligenceDashboard({
       },
       datalabels: {
         display: (ctx) => ctx.datasetIndex === 1,
-        color: "#fff",
+        color: isDark ? "#fff" : "#0f172a",
         font: { weight: 700, size: 10, family: "'JetBrains Mono', monospace" },
         anchor: "center",
         align: "center",
         formatter: (v, ctx) => `${intel.lifecycle[ctx.dataIndex].deploys}d`,
-        textStrokeColor: "rgba(0,0,0,0.5)",
+        textStrokeColor: isDark ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.65)",
         textStrokeWidth: 2,
       },
     },
@@ -801,6 +801,7 @@ export default function IntelligenceDashboard({
           repos={intel.repos}
           gridColor={gridColor}
           tickColor={tickColor}
+          isDark={isDark}
           onRepoClick={drillByRepo}
         />
       ),
@@ -1042,7 +1043,7 @@ function truncate(s, max) {
 }
 
 // ---- Repository Lifecycle — expanded modal view (tall, scrollable, searchable) ----
-function LifecycleExpanded({ lifecycle, repos, gridColor, tickColor, onRepoClick }) {
+function LifecycleExpanded({ lifecycle, repos, gridColor, tickColor, isDark, onRepoClick }) {
   const [query, setQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -1111,12 +1112,12 @@ function LifecycleExpanded({ lifecycle, repos, gridColor, tickColor, onRepoClick
       },
       datalabels: {
         display: (ctx) => ctx.datasetIndex === 1,
-        color: "#fff",
+        color: isDark ? "#fff" : "#0f172a",
         font: { weight: 700, size: 11, family: "'JetBrains Mono', monospace" },
         anchor: "center",
         align: "center",
         formatter: (_v, ctx) => `${filtered[ctx.dataIndex].deploys}d`,
-        textStrokeColor: "rgba(0,0,0,0.5)",
+        textStrokeColor: isDark ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.65)",
         textStrokeWidth: 2,
       },
     },
