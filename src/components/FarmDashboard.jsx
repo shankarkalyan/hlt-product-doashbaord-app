@@ -1388,13 +1388,24 @@ function FarmHeatmap({ rows, domains, isDark, onCellClick }) {
               : isDark
               ? "rgba(255,255,255,0.04)"
               : "rgba(0,0,0,0.04)";
-            const fg = baseCol || "var(--ts)";
+            const fg =
+              c.count > 0
+                ? isDark
+                  ? "#ffffff"
+                  : "#0f172a"
+                : "var(--ts)";
+            const halo =
+              c.count > 0
+                ? isDark
+                  ? "0 0 3px rgba(0,0,0,0.55)"
+                  : "0 0 3px rgba(255,255,255,0.7)"
+                : "none";
             return (
               <button
                 key={c.domain}
                 type="button"
                 className={`farm-hm-cell${c.count > 0 ? " has-data" : ""}`}
-                style={{ background: bg, color: fg }}
+                style={{ background: bg, color: fg, textShadow: halo }}
                 onClick={() => onCellClick && onCellClick(r.app, c)}
                 title={`${r.app} × ${c.domain}: ${c.count} finding${c.count !== 1 ? "s" : ""}${
                   c.overdue ? ` (${c.overdue} overdue)` : ""

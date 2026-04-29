@@ -50,14 +50,24 @@ export default function RiskHeatmap({ deployments, isDark, onCellClick }) {
           <div className="hm-label">{t}</div>
           {STATUSES.map((s) => {
             const v = matrix[t][s];
-            const color = STATUS_HEX[s];
             return (
               <div
                 key={s}
                 className="hm-cell"
                 style={{
                   background: bgFor(v, s),
-                  color: v > 0 ? color : "var(--ts)",
+                  color:
+                    v > 0
+                      ? isDark
+                        ? "#ffffff"
+                        : "#0f172a"
+                      : "var(--ts)",
+                  textShadow:
+                    v > 0
+                      ? isDark
+                        ? "0 0 3px rgba(0,0,0,0.55)"
+                        : "0 0 3px rgba(255,255,255,0.7)"
+                      : "none",
                 }}
                 title={`${t} · ${s}: ${v}`}
                 onClick={() => onCellClick && onCellClick(t, s)}
