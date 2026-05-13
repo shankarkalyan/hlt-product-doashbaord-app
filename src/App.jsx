@@ -18,6 +18,7 @@ import Tabs from "./components/Tabs";
 import IntelligenceDashboard from "./components/IntelligenceDashboard";
 import IncidentDashboard, { INCIDENT_SCHEMA } from "./components/IncidentDashboard";
 import FarmDashboard, { FARM_SCHEMA } from "./components/FarmDashboard";
+import AOWorkflowDashboard from "./components/AOWorkflowDashboard";
 
 ChartJS.register(...registerables, ChartDataLabels);
 
@@ -147,6 +148,29 @@ const ALERT_ICON = (
   </svg>
 );
 
+const WORKFLOW_ICON = (
+  <svg
+    viewBox="0 0 24 24"
+    width="28"
+    height="28"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <circle cx="6" cy="6" r="2" />
+    <circle cx="18" cy="6" r="2" />
+    <circle cx="6" cy="18" r="2" />
+    <circle cx="18" cy="18" r="2" />
+    <path d="M8 6h8" />
+    <path d="M6 8v8" />
+    <path d="M18 8v8" />
+    <path d="M8 18h8" />
+  </svg>
+);
+
 const SHIELD_ICON = (
   <svg
     viewBox="0 0 24 24"
@@ -240,6 +264,7 @@ export default function App() {
   const goDashboard = () => setView("dashboard");
   const goIncidents = () => setView("incidents");
   const goFarm = () => setView("farm");
+  const goAoWorkflow = () => setView("aoWorkflow");
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -380,6 +405,17 @@ export default function App() {
   const openFarmDrill = (title, predicate) => {
     const rows = findings.filter(predicate);
     setDrill({ title, rows, schema: FARM_SCHEMA });
+  };
+  // Open the DrillPanel pre-selected to a single finding (jumps straight to
+  // the detail view so workflow rows behave as a one-click drill-down).
+  const openFarmDrillRow = (finding) => {
+    if (!finding) return;
+    setDrill({
+      title: `Finding · ${finding["Source ID"]}`,
+      rows: [finding],
+      selected: finding,
+      schema: FARM_SCHEMA,
+    });
   };
   const drillByType = (type) =>
     openDrill(`Deploy type · ${type}`, (d) => d.deploy_type === type);
@@ -1065,6 +1101,18 @@ export default function App() {
         .filter(Boolean)
         .join(" · ");
     }
+    if (view === "aoWorkflow") {
+      return [
+        "Home Lending",
+        "Chase MyHome",
+        "AO Workflow",
+        `${farmSummary.apps} applications`,
+        `${farmSummary.total} FARM breaks`,
+        `${farmSummary.overdue} overdue`,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+    }
     return [
       stats.productLine,
       stats.productName,
@@ -1086,6 +1134,8 @@ export default function App() {
       crumbs.push({ label: "Incident Metrics Dashboard" });
     if (view === "farm")
       crumbs.push({ label: "FARM Findings Dashbaord" });
+    if (view === "aoWorkflow")
+      crumbs.push({ label: "AO Workflow & Admin Approvals" });
     return crumbs;
   })();
 
@@ -1202,6 +1252,29 @@ export default function App() {
               onClick={goIncidents}
             />
             <LandingTile
+              icon={WORKFLOW_ICON}
+              eyebrow="Workflow"
+              title="AO Workflow & Admin Approvals"
+              subtitle="Allocate FARM breaks · approve extension requests"
+              description="Application heatmap of open FARM breaks with a deadline filter, ticket allocation to Application Owners, and an admin queue to approve extension requests with reason and audit trail."
+              meta={[
+                {
+                  value: farmSummary.apps,
+                  label: "Applications",
+                },
+                {
+                  value: farmSummary.total,
+                  label: "FARM breaks",
+                },
+                {
+                  value: farmSummary.overdue,
+                  label: "Overdue",
+                },
+              ]}
+              cta="Open workflow"
+              onClick={goAoWorkflow}
+            />
+            <LandingTile
               icon={SHIELD_ICON}
               eyebrow="Dashboard"
               title="FARM Findings Dashbaord"
@@ -1267,6 +1340,15 @@ export default function App() {
           isDark={isDark}
           setExpandedChart={setExpandedChart}
           openDrill={openFarmDrill}
+        />
+      )}
+
+      {view === "aoWorkflow" && (
+        <AOWorkflowDashboard
+          findings={findings}
+          isDark={isDark}
+          openFarmDrill={openFarmDrill}
+          openFarmDrillRow={openFarmDrillRow}
         />
       )}
 
