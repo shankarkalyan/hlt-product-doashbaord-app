@@ -178,57 +178,6 @@ function matchesBucket(d, bucketId) {
   return b === bucketId;
 }
 
-// ---- Sample extension requests so the admin view has content on load ----
-// Pure illustrative demo content. Source rows are picked from whichever
-// findings happen to be overdue / near-deadline in the loaded dataset, so it
-// stays meaningful when the data is swapped out.
-function seedExtensionRequests(findings) {
-  const seed = [];
-  const reasons = [
-    "ServiceNow change ticket awaiting CAB approval; dependency on infra freeze window.",
-    "Vendor patch released later than planned; integration test cycle extended by two weeks.",
-    "Remediation requires coordinated rollout across regions; need additional change window.",
-    "Open PR blocked on security review; awaiting findings sign-off from InfoSec.",
-    "Service account rotation requires owning team availability — scheduling conflict.",
-  ];
-  const overdueFindings = findings.filter(isOverdueFinding);
-  const nearDeadline = findings.filter((f) => {
-    const b = f["Current Target Date Age Status"] || "";
-    if (/overdue/i.test(b)) return false;
-    const m = /(\d+)\s*-\s*(\d+)/.exec(b);
-    return m && Number(m[2]) <= 30;
-  });
-  const sampleSet = [
-    ...overdueFindings.slice(0, 3),
-    ...nearDeadline.slice(0, 2),
-  ];
-  const today = new Date();
-  const toIso = (d) => {
-    const z = new Date(d);
-    z.setHours(0, 0, 0, 0);
-    return z.toISOString().slice(0, 10);
-  };
-  sampleSet.forEach((f, idx) => {
-    const requestedAt = new Date(today);
-    requestedAt.setDate(today.getDate() - (idx * 2 + 1));
-    seed.push({
-      id: `EXT-${f["Source ID"]}`,
-      sourceId: f["Source ID"],
-      findingId: f["Source ID"],
-      ao: f["AO"],
-      application: f["Application Name"],
-      severity: f["Severity"],
-      currentTargetDate: f["Current Target Date"],
-      requestedDays: 14 + idx * 7,
-      reason: reasons[idx % reasons.length],
-      status: "pending",
-      adminComment: "",
-      requestedAt: toIso(requestedAt),
-    });
-  });
-  return seed;
-}
-
 // ---- Lightweight modal helper ----
 function Modal({ open, title, onClose, children, width = 540 }) {
   if (!open) return null;
@@ -315,9 +264,9 @@ export default function AOWorkflowDashboard({
   const [workbenchFilter, setWorkbenchFilter] = useState("open"); // 'open' | 'closed' | 'all'
   // Local allocation overrides: sourceId → AO display name (e.g. "Sarah Chen (S123456)")
   const [allocations, setAllocations] = useState({});
-  const [extensionRequests, setExtensionRequests] = useState(() =>
-    seedExtensionRequests(findings)
-  );
+  // Admin queue starts empty — fills only when an AO (or guest, on behalf of
+  // an AO) submits an extension request via the workflow.
+  const [extensionRequests, setExtensionRequests] = useState([]);
   const [requestModal, setRequestModal] = useState(null); // { finding }
   const [requestReason, setRequestReason] = useState("");
   const [requestDays, setRequestDays] = useState(14);
